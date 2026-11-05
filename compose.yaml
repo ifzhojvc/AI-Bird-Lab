@@ -1,0 +1,150 @@
+services:
+  sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: Y
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in your environment}
+    volumes:
+      - sql-data:/var/opt/mssql
+    healthcheck:
+      test: [CMD-SHELL, '/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -C -Q "SELECT 1" -b -o /dev/null']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+  rabbitmq:
+    image: rabbitmq:4.4.0-management
+    hostname: bird-rabbitmq
+    entrypoint: [/bin/sh, /etc/rabbitmq/bootstrap.sh]
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:?Set RABBITMQ_USERNAME in .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}
+      RABBITMQ_DEFAULT_VHOST: birdlab
+    expose:
+      - '5672'
+    ports:
+      - '127.0.0.1:15672:15672'
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - ./rabbitmq/bootstrap.sh:/etc/rabbitmq/bootstrap.sh:ro
+    healthcheck:
+      test: [CMD-SHELL, 'test -f /tmp/bird-rabbitmq-ready && rabbitmq-diagnostics -q check_running']
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 20s
+    restart: unless-stopped
+  ai:
+    build:
+      context: .
+      dockerfile: ai-server/Dockerfile
+    environment:
+      BIRD_OFFLINE: 'false'
+      AI_INTERNAL_KEY: ${AI_INTERNAL_KEY:?Set AI_INTERNAL_KEY in your environment}
+    volumes:
+      - model-cache:/app/.cache/huggingface
+    healthcheck:
+      test: [CMD, python, -c, 'import os,urllib.request; urllib.request.urlopen(urllib.request.Request("http://127.0.0.1:8000/health", headers={"X-AI-Key": os.environ["AI_INTERNAL_KEY"]}), timeout=3)']
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+  worker:
+    build:
+      context: .
+      dockerfile: ai-server/Dockerfile
+    command: [python, ai-server/worker.py]
+    environment:
+      BIRD_OFFLINE: 'false'
+      BIRD_MEDIA_ROOT: /app/storage
+      BIRD_WORKER_STATE: /app/worker-state
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    volumes:
+      - media:/app/storage:ro
+      - model-cache:/app/.cache/huggingface
+      - worker-state:/app/worker-state
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, python, ai-server/worker.py, --health]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    stop_grace_period: 90s
+    restart: unless-stopped
+  migrate:
+    build:
+      context: .
+      dockerfile: central-server/Dockerfile
+    command: [--migrate-db]
+    environment:
+      ConnectionStrings__BirdLab: 'Server=sql,1433;Database=AIBirdLab;User Id=sa;Password=${MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True'
+    depends_on:
+      sql:
+        condition: service_healthy
+  central:
+    build:
+      context: .
+      dockerfile: central-server/Dockerfile
+    environment:
+      ConnectionStrings__BirdLab: 'Server=sql,1433;Database=AIBirdLab;User Id=sa;Password=${MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True'
+      AiServer__BaseUrl: http://ai:8000
+      AiServer__InternalKey: ${AI_INTERNAL_KEY}
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Username: ${RABBITMQ_USERNAME}
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD}
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      Blockchain__Enabled: ${BLOCKCHAIN_ENABLED:-false}
+      Blockchain__TestMode: 'true'
+      Blockchain__AllowLocalAnvil: ${BLOCKCHAIN_ALLOW_LOCAL_ANVIL:-false}
+      Blockchain__RpcUrl: ${BLOCKCHAIN_RPC_URL:-https://sepolia.base.org}
+      Blockchain__PublicRpcUrl: ${BLOCKCHAIN_PUBLIC_RPC_URL:-https://sepolia.base.org}
+      Blockchain__ChainId: ${BLOCKCHAIN_CHAIN_ID:-84532}
+      Blockchain__TokenAddress: ${BLOCKCHAIN_TOKEN_ADDRESS:-0x036CbD53842c5426634e7929541eC2318f3dCF7e}
+      Blockchain__TokenDecimals: ${BLOCKCHAIN_TOKEN_DECIMALS:-6}
+      Blockchain__PaymentContractAddress: ${BLOCKCHAIN_PAYMENT_CONTRACT_ADDRESS:-}
+      Blockchain__Confirmations: ${BLOCKCHAIN_CONFIRMATIONS:-12}
+      Blockchain__SiweDomain: ${SIWE_DOMAIN:-localhost:5173}
+      Blockchain__SiweUri: ${SIWE_URI:-http://localhost:5173}
+    ports:
+      - '5100:5100'
+    volumes:
+      - media:/app/storage
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      ai:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, dotnet, BirdLab.Api.dll, --healthcheck]
+      interval: 15s
+      timeout: 15s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    stop_grace_period: 30s
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:v1.7.1
+    profiles: [blockchain-local]
+    entrypoint: [anvil]
+    command: [--host, 0.0.0.0, --port, '8545', --chain-id, '31337', --silent]
+    ports:
+      - '127.0.0.1:8545:8545'
+volumes:
+  sql-data:
+  media:
+  model-cache:
+  rabbitmq-data:
+  worker-state:

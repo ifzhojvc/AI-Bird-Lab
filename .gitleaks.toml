@@ -1,0 +1,14 @@
+title = "AI Bird Lab secret scanning"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "Exact public Circle USDC contract address on Base Sepolia, verified in Circle documentation"
+condition = "AND"
+paths = ['''(^|[/\\])(\.env\.example|central-server[/\\]appsettings\.json|docs[/\\]SUBSCRIPTIONS\.md)$''']
+regexTarget = "secret"
+regexes = ['''(?i)^0x036cbd53842c5426634e7929541ec2318f3dcf7e$''']

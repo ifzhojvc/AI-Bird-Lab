@@ -1,0 +1,309 @@
+{
+  "vhosts": [
+    {
+      "name": "birdlab"
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "bird.analysis",
+      "vhost": "birdlab",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "bird.analysis.retry",
+      "vhost": "birdlab",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "bird.analysis.dlx",
+      "vhost": "birdlab",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    {
+      "name": "bird.analysis.requests",
+      "vhost": "birdlab",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum"
+      }
+    },
+    {
+      "name": "bird.analysis.results",
+      "vhost": "birdlab",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum"
+      }
+    },
+    {
+      "name": "bird.analysis.dead",
+      "vhost": "birdlab",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum"
+      }
+    },
+    {
+      "name": "bird.analysis.requests.retry.1",
+      "vhost": "birdlab",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum"
+      }
+    },
+    {
+      "name": "bird.analysis.requests.retry.2",
+      "vhost": "birdlab",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum"
+      }
+    },
+    {
+      "name": "bird.analysis.requests.retry.3",
+      "vhost": "birdlab",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum"
+      }
+    },
+    {
+      "name": "bird.analysis.results.retry.1",
+      "vhost": "birdlab",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum"
+      }
+    },
+    {
+      "name": "bird.analysis.results.retry.2",
+      "vhost": "birdlab",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum"
+      }
+    },
+    {
+      "name": "bird.analysis.results.retry.3",
+      "vhost": "birdlab",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum"
+      }
+    }
+  ],
+  "bindings": [
+    {
+      "source": "bird.analysis",
+      "vhost": "birdlab",
+      "destination": "bird.analysis.requests",
+      "destination_type": "queue",
+      "routing_key": "analysis.requested",
+      "arguments": {}
+    },
+    {
+      "source": "bird.analysis",
+      "vhost": "birdlab",
+      "destination": "bird.analysis.results",
+      "destination_type": "queue",
+      "routing_key": "analysis.event",
+      "arguments": {}
+    },
+    {
+      "source": "bird.analysis.dlx",
+      "vhost": "birdlab",
+      "destination": "bird.analysis.dead",
+      "destination_type": "queue",
+      "routing_key": "analysis.dead",
+      "arguments": {}
+    },
+    {
+      "source": "bird.analysis.retry",
+      "vhost": "birdlab",
+      "destination": "bird.analysis.requests.retry.1",
+      "destination_type": "queue",
+      "routing_key": "requests.1",
+      "arguments": {}
+    },
+    {
+      "source": "bird.analysis.retry",
+      "vhost": "birdlab",
+      "destination": "bird.analysis.requests.retry.2",
+      "destination_type": "queue",
+      "routing_key": "requests.2",
+      "arguments": {}
+    },
+    {
+      "source": "bird.analysis.retry",
+      "vhost": "birdlab",
+      "destination": "bird.analysis.requests.retry.3",
+      "destination_type": "queue",
+      "routing_key": "requests.3",
+      "arguments": {}
+    },
+    {
+      "source": "bird.analysis.retry",
+      "vhost": "birdlab",
+      "destination": "bird.analysis.results.retry.1",
+      "destination_type": "queue",
+      "routing_key": "results.1",
+      "arguments": {}
+    },
+    {
+      "source": "bird.analysis.retry",
+      "vhost": "birdlab",
+      "destination": "bird.analysis.results.retry.2",
+      "destination_type": "queue",
+      "routing_key": "results.2",
+      "arguments": {}
+    },
+    {
+      "source": "bird.analysis.retry",
+      "vhost": "birdlab",
+      "destination": "bird.analysis.results.retry.3",
+      "destination_type": "queue",
+      "routing_key": "results.3",
+      "arguments": {}
+    }
+  ],
+  "policies": [
+    {
+      "vhost": "birdlab",
+      "name": "bird-main-dlx",
+      "pattern": "^bird\\.analysis\\.(requests|results)$",
+      "apply-to": "quorum_queues",
+      "definition": {
+        "dead-letter-strategy": "at-least-once",
+        "overflow": "reject-publish",
+        "delivery-limit": 5,
+        "dead-letter-exchange": "bird.analysis.dlx",
+        "dead-letter-routing-key": "analysis.dead"
+      },
+      "priority": 10
+    },
+    {
+      "vhost": "birdlab",
+      "name": "bird-requests-retry-1",
+      "pattern": "^bird\\.analysis\\.requests\\.retry\\.1$",
+      "apply-to": "quorum_queues",
+      "definition": {
+        "dead-letter-strategy": "at-least-once",
+        "overflow": "reject-publish",
+        "delivery-limit": 5,
+        "message-ttl": 10000,
+        "dead-letter-exchange": "bird.analysis",
+        "dead-letter-routing-key": "analysis.requested"
+      },
+      "priority": 10
+    },
+    {
+      "vhost": "birdlab",
+      "name": "bird-requests-retry-2",
+      "pattern": "^bird\\.analysis\\.requests\\.retry\\.2$",
+      "apply-to": "quorum_queues",
+      "definition": {
+        "dead-letter-strategy": "at-least-once",
+        "overflow": "reject-publish",
+        "delivery-limit": 5,
+        "message-ttl": 30000,
+        "dead-letter-exchange": "bird.analysis",
+        "dead-letter-routing-key": "analysis.requested"
+      },
+      "priority": 10
+    },
+    {
+      "vhost": "birdlab",
+      "name": "bird-requests-retry-3",
+      "pattern": "^bird\\.analysis\\.requests\\.retry\\.3$",
+      "apply-to": "quorum_queues",
+      "definition": {
+        "dead-letter-strategy": "at-least-once",
+        "overflow": "reject-publish",
+        "delivery-limit": 5,
+        "message-ttl": 60000,
+        "dead-letter-exchange": "bird.analysis",
+        "dead-letter-routing-key": "analysis.requested"
+      },
+      "priority": 10
+    },
+    {
+      "vhost": "birdlab",
+      "name": "bird-results-retry-1",
+      "pattern": "^bird\\.analysis\\.results\\.retry\\.1$",
+      "apply-to": "quorum_queues",
+      "definition": {
+        "dead-letter-strategy": "at-least-once",
+        "overflow": "reject-publish",
+        "delivery-limit": 5,
+        "message-ttl": 10000,
+        "dead-letter-exchange": "bird.analysis",
+        "dead-letter-routing-key": "analysis.event"
+      },
+      "priority": 10
+    },
+    {
+      "vhost": "birdlab",
+      "name": "bird-results-retry-2",
+      "pattern": "^bird\\.analysis\\.results\\.retry\\.2$",
+      "apply-to": "quorum_queues",
+      "definition": {
+        "dead-letter-strategy": "at-least-once",
+        "overflow": "reject-publish",
+        "delivery-limit": 5,
+        "message-ttl": 30000,
+        "dead-letter-exchange": "bird.analysis",
+        "dead-letter-routing-key": "analysis.event"
+      },
+      "priority": 10
+    },
+    {
+      "vhost": "birdlab",
+      "name": "bird-results-retry-3",
+      "pattern": "^bird\\.analysis\\.results\\.retry\\.3$",
+      "apply-to": "quorum_queues",
+      "definition": {
+        "dead-letter-strategy": "at-least-once",
+        "overflow": "reject-publish",
+        "delivery-limit": 5,
+        "message-ttl": 60000,
+        "dead-letter-exchange": "bird.analysis",
+        "dead-letter-routing-key": "analysis.event"
+      },
+      "priority": 10
+    },
+    {
+      "vhost": "birdlab",
+      "name": "bird-dead-retain",
+      "pattern": "^bird\\.analysis\\.dead$",
+      "apply-to": "quorum_queues",
+      "definition": {
+        "delivery-limit": -1
+      },
+      "priority": 10
+    }
+  ]
+}

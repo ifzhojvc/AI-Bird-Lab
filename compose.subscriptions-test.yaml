@@ -1,0 +1,44 @@
+services:
+  ai:
+    image: birds-ai
+    environment:
+      BIRD_OFFLINE: 'true'
+    volumes: !override
+      - model-cache:/app/.cache/huggingface:ro
+  worker:
+    image: birds-worker
+    environment:
+      BIRD_OFFLINE: 'true'
+      RABBITMQ_VHOST: ${SUBSCRIPTION_TEST_VHOST:-birdlab}
+    volumes: !override
+      - media:/app/storage:ro
+      - model-cache:/app/.cache/huggingface:ro
+      - worker-state:/app/worker-state
+  migrate:
+    image: birds-migrate
+    environment:
+      ConnectionStrings__BirdLab: 'Server=sql,1433;Database=${SUBSCRIPTION_TEST_DATABASE:-BirdLabSubscriptionIntegration};User Id=sa;Password=${MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True'
+  central:
+    image: birds-central
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__BirdLab: 'Server=sql,1433;Database=${SUBSCRIPTION_TEST_DATABASE:-BirdLabSubscriptionIntegration};User Id=sa;Password=${MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True'
+      RabbitMQ__VirtualHost: ${SUBSCRIPTION_TEST_VHOST:-birdlab}
+      Blockchain__Enabled: 'true'
+      Blockchain__AllowLocalAnvil: 'true'
+      Blockchain__ChainId: '31337'
+      Blockchain__RpcUrl: http://anvil:8545
+      Blockchain__PublicRpcUrl: http://127.0.0.1:8545
+      Blockchain__TokenAddress: ${SUBSCRIPTION_TEST_TOKEN:-}
+      Blockchain__PaymentContractAddress: ${SUBSCRIPTION_TEST_CONTRACT:-}
+      Blockchain__Confirmations: '3'
+      Blockchain__PollSeconds: '2'
+    ports: !override
+      - '127.0.0.1:${SUBSCRIPTION_TEST_PORT:-5110}:5100'
+  rabbitmq:
+    ports: !override
+      - '127.0.0.1:15673:15672'
+volumes:
+  model-cache:
+    external: true
+    name: ${SUBSCRIPTION_MODEL_CACHE_VOLUME:-birds_model-cache}

@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "AI Bird Lab",
+    "slug": "ai-bird-lab",
+    "version": "2.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Зробіть фото птаха для аналізу.",
+        "NSPhotoLibraryUsageDescription": "Оберіть фотографію птаха для аналізу.",
+        "NSMicrophoneUsageDescription": "Запишіть голос птаха для аналізу."
+      }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Оберіть фото птаха.",
+          "cameraPermission": "Зробіть фото птаха."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Запишіть голос птаха."
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "assetBundlePatterns": [
+      "**/*"
+    ]
+  }
+}

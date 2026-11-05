@@ -1,0 +1,14 @@
+{
+  "source": "https://freesound.org/people/InspectorJ/sounds/456440/",
+  "mirror": "https://librosa.org/data/audio/456440__inspectorj__bird-whistling-robin-single-13.ogg",
+  "author": "InspectorJ",
+  "original_description": "Bird Whistling, Robin, Single, 13.wav",
+  "license_text": "Bird Whistling, Robin, Single, 13.wav / InspectorJ\n\nA single chirping call of an English robin bird. Approximately 2 meters from the recorder.\nThe sound was recorded using a \"Zoom H6 (XY) recorder\" on 9th May 2018.\n\nhttps://freesound.org/people/InspectorJ/sounds/456440/\n\nCC-BY 3.0: https://creativecommons.org/licenses/by/3.0/\n",
+  "file_name": "robin.wav",
+  "sha256": "60fb813bb49c1516062e87491b9ad438e12f1d5ea4539640e1d138fd4797b5ad",
+  "sample_rate": 22050,
+  "duration_seconds": 2.698639455782313,
+  "processing": "Decoded OGG mirror to PCM16 WAV; no synthetic sound or relabeling",
+  "accuracy_evaluated": false,
+  "limitation": "The source calls the bird robin; this class is outside the audio model label set. No species accuracy is claimed."
+}
